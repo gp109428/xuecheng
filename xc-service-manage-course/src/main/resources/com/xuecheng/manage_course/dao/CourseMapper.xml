@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.xuecheng.manage_course.dao.CourseMapper">
+    <resultMap id="CourseInfo" type="com.xuecheng.framework.domain.course.ext.CourseInfo">
+        <id column="b.id" property="id"></id>
+        <result column="b.name" property="name"></result>
+        <result column="p.pic" property="pic"></result>
+    </resultMap>
+    <select id="findCourseBaseById" parameterType="java.lang.String"
+            resultType="com.xuecheng.framework.domain.course.CourseBase">
+        select * from course_base where id = #{id}
+    </select>
+    
+    <select id="findCourseListPage" resultType="com.xuecheng.framework.domain.course.ext.CourseInfo" parameterType="com.xuecheng.framework.domain.course.request.CourseListRequest" >
+        select b.id,b.name,p.pic from course_base b left join course_pic p on p.courseid=b.id
+    </select>
+</mapper>
