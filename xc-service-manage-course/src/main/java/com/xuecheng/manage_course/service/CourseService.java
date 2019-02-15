@@ -4,6 +4,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.xuecheng.framework.domain.cms.CmsPage;
 import com.xuecheng.framework.domain.cms.response.CmsPageResult;
+import com.xuecheng.framework.domain.cms.response.CmsPostPageResult;
 import com.xuecheng.framework.domain.course.CourseBase;
 import com.xuecheng.framework.domain.course.CourseMarket;
 import com.xuecheng.framework.domain.course.CoursePic;
@@ -292,7 +293,6 @@ public class CourseService {
     //课程预览
     public CoursePublishResult preview(String id) {
         CourseBase one = this.findByid(id);
-
         //发布课程预览页面
         CmsPage cmsPage = new CmsPage();
         //站点
@@ -321,4 +321,49 @@ public class CourseService {
         return new CoursePublishResult(CommonCode.SUCCESS,pageUrl);
 
     }
+
+    //一键发布课程页面
+    @Transactional
+    public CoursePublishResult publish(String id) {
+        CourseBase one = this.findByid(id);
+        //发布课程预览页面
+        CmsPage cmsPage = new CmsPage();
+        //站点
+        cmsPage.setSiteId(coursePublicsh.getSiteId());//课程预览站点
+        //模板
+        cmsPage.setTemplateId(coursePublicsh.getTemplateId());
+        //页面名称
+        cmsPage.setPageName(id + ".html");
+        //页面别名
+        cmsPage.setPageAliase(one.getName());
+        //页面访问路径
+        cmsPage.setPageWebPath(coursePublicsh.getPageWebPath());
+        //页面存储路径
+        cmsPage.setPagePhysicalPath(coursePublicsh.getPagePhysicalPath());
+        //数据url
+        cmsPage.setDataUrl(coursePublicsh.getDataUrlPre() + id);
+        //远程调用一键发布课程页面返回url
+        CmsPostPageResult cmsPostPageResult = cmsPageClient.postPageQuick(cmsPage);
+        if (!cmsPostPageResult.isSuccess()) {
+            return new CoursePublishResult(CommonCode.FAIL, null);
+        }
+        //更新课程状态
+        CourseBase courseBase = saveCoursePubState(id);
+        //课程索引...
+        //课程缓存...
+        //页面url
+        String pageUrl = cmsPostPageResult.getPageUrl();
+        return new CoursePublishResult(CommonCode.SUCCESS, pageUrl);
+    }
+
+    private CourseBase saveCoursePubState(String id) {
+        CourseBase base = findByid(id);
+        if (base==null){
+            ExceptionCast.Cast(CommonCode.INVALID_PARAM);
+        }
+        base.setStatus("202002");
+        courseBaseRepository.save(base);
+        return base;
+    }
+
 }
