@@ -35,14 +35,15 @@ public class CmsConfigServiceTest {
     @Test
     public void testGridFs() throws FileNotFoundException {
         //要存储的文件
-        File file = new File("e:/index_banner.ftl");
+        File file = new File("e:/course.ftl");
         //定义输入流
         FileInputStream inputStram = new FileInputStream(file);
         //向GridFS存储文件
-        ObjectId objectId = gridFsTemplate.store(inputStram, "轮播图测试文件01", "");
+        ObjectId objectId = gridFsTemplate.store(inputStram, "course.ftl", "utf-8");
         //得到文件ID
         String fileId = objectId.toString();
         System.out.println(fileId);
+
     }
     @Test
     public void getHtml() throws FileNotFoundException {

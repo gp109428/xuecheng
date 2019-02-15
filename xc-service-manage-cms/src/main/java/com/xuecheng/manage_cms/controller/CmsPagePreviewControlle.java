@@ -25,6 +25,7 @@ public class CmsPagePreviewControlle extends BaseController {
         if(StringUtils.isNotEmpty(pageHtml)){
             try {
                 //输出到页面
+                response.setHeader("Content-type","text/html;charset=utf-8");
                 response.getOutputStream().write(pageHtml.getBytes("utf-8"));
             } catch (IOException e) {
                 e.printStackTrace();
