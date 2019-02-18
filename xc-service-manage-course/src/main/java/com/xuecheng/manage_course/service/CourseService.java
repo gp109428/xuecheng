@@ -1,14 +1,13 @@
 package com.xuecheng.manage_course.service;
 
+import com.alibaba.fastjson.JSON;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.xuecheng.framework.domain.cms.CmsPage;
 import com.xuecheng.framework.domain.cms.response.CmsPageResult;
 import com.xuecheng.framework.domain.cms.response.CmsPostPageResult;
-import com.xuecheng.framework.domain.course.CourseBase;
-import com.xuecheng.framework.domain.course.CourseMarket;
-import com.xuecheng.framework.domain.course.CoursePic;
-import com.xuecheng.framework.domain.course.Teachplan;
+import com.xuecheng.framework.domain.course.*;
 import com.xuecheng.framework.domain.course.ext.*;
 import com.xuecheng.framework.domain.course.request.CourseListRequest;
 import com.xuecheng.framework.domain.course.response.AddCourseResult;
@@ -21,6 +20,7 @@ import com.xuecheng.framework.model.response.ResponseResult;
 import com.xuecheng.manage_course.client.CmsPageClient;
 import com.xuecheng.manage_course.config.CoursePublicsh;
 import com.xuecheng.manage_course.dao.*;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +29,8 @@ import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -59,6 +61,8 @@ public class CourseService {
 
     @Autowired
     CmsPageClient cmsPageClient;
+    @Autowired
+    CoursePubRepository coursePubRepository;
 
     //查询课程计划
     public TeachplanNode findTeachplanList(String courseId){
@@ -349,11 +353,58 @@ public class CourseService {
         }
         //更新课程状态
         CourseBase courseBase = saveCoursePubState(id);
-        //课程索引...
+        //添加课程索引到数据库,用Logstash同步到索引库
+        CoursePub coursePub = createCoursePub(id);
+        //保存 coursePub,有则更改,无则添加
+        CoursePub coursePub1 = saveCoursePub(id, coursePub);
         //课程缓存...
         //页面url
         String pageUrl = cmsPostPageResult.getPageUrl();
         return new CoursePublishResult(CommonCode.SUCCESS, pageUrl);
+    }
+
+    //保存 coursePub,有则更改,无则添加
+    private CoursePub saveCoursePub(String id, CoursePub coursePub) {
+        CoursePub coursePubNew = null;
+        Optional<CoursePub> coursePubOptional = coursePubRepository.findById(id);
+        if(coursePubOptional.isPresent()){
+            coursePubNew = coursePubOptional.get();
+        }else {
+            coursePubNew = new CoursePub();
+        }
+        BeanUtils.copyProperties(coursePub,coursePubNew);
+        //更新时间戳为最新时间
+        coursePubNew.setTimestamp(new Date());
+        coursePubNew.setPubTime(new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(new Date()));
+        coursePubNew.setId(id);
+        coursePubRepository.save(coursePub);
+        return coursePub;
+    }
+
+    //创建一个coursePub对象 拼装信息
+    private CoursePub createCoursePub(String id) {
+        CoursePub coursePub = new CoursePub();
+        //封装课程基本信息
+        CourseBase base = this.findByid(id);
+        if (base!=null){
+            BeanUtils.copyProperties(base,coursePub);
+        }
+        //封装课程图片信息
+        CoursePic coursepic = this.findCoursepic(id);
+        if (coursepic!=null){
+            BeanUtils.copyProperties(coursepic,coursePub);
+        }
+        //课程营销信息
+        Optional<CourseMarket> marketOptional = courseMarketRepository.findById(id);
+        if(marketOptional.isPresent()){
+            CourseMarket courseMarket = marketOptional.get();
+            BeanUtils.copyProperties(courseMarket, coursePub);
+        }
+        //课程计划信息转成Json字符串存入
+        TeachplanNode teachplanNode = teachplanMapper.selectList(id);
+        String string = JSON.toJSONString(teachplanNode);
+        coursePub.setTeachplan(string);
+        return coursePub;
     }
 
     private CourseBase saveCoursePubState(String id) {
