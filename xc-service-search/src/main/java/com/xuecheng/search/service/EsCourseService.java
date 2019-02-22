@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -177,5 +178,46 @@ public class EsCourseService {
         QueryResponseResult<CoursePub> queryResponseResult = new QueryResponseResult<CoursePub>(CommonCode.SUCCESS,queryResult);
 
         return queryResponseResult;
+    }
+
+    //根据ID查询课程信息
+    public Map<String, CoursePub> findById(String id) {
+
+        //创建搜索请求
+        SearchRequest searchRequest = new SearchRequest(index);
+        searchRequest.types(type);
+
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.termQuery("id",id));
+        searchRequest.source(searchSourceBuilder);
+
+        Map<String,CoursePub> map = new HashMap<>();
+        try {
+            SearchResponse search = restHighLevelClient.search(searchRequest);
+            SearchHits hits = search.getHits();
+            SearchHit[] hits1 = hits.getHits();
+            for (SearchHit hit : hits1) {
+                Map<String, Object> sourceAsMap = hit.getSourceAsMap();
+                CoursePub coursePub = new CoursePub();
+                String courseId = (String) sourceAsMap.get("id");
+                String name = (String) sourceAsMap.get("name");
+                String grade = (String) sourceAsMap.get("grade");
+                String charge = (String) sourceAsMap.get("charge");
+                String pic = (String) sourceAsMap.get("pic");
+                String description = (String) sourceAsMap.get("description");
+                String teachplan = (String) sourceAsMap.get("teachplan");
+                coursePub.setId(courseId);
+                coursePub.setName(name);
+                coursePub.setPic(pic);
+                coursePub.setGrade(grade);
+                coursePub.setTeachplan(teachplan);
+                coursePub.setDescription(description);
+                map.put(courseId,coursePub);
+                return map;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
