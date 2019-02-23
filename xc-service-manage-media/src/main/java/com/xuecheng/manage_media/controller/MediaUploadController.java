@@ -1,7 +1,9 @@
 package com.xuecheng.manage_media.controller;
 
 import com.xuecheng.api.media.MediaUploadControllerApi;
+import com.xuecheng.framework.domain.media.request.QueryMediaFileRequest;
 import com.xuecheng.framework.domain.media.response.CheckChunkResult;
+import com.xuecheng.framework.model.response.QueryResponseResult;
 import com.xuecheng.framework.model.response.ResponseResult;
 import com.xuecheng.manage_media.service.MediaUploadService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +53,8 @@ public class MediaUploadController implements MediaUploadControllerApi{
                                       @RequestParam("fileExt") String fileExt) {
         return mediaUploadService.mergechunks(fileMd5,fileName,fileSize,mimetype,fileExt);
     }
+
+
 
 
 }

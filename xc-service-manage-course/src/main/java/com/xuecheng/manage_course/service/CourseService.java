@@ -12,6 +12,8 @@ import com.xuecheng.framework.domain.course.ext.*;
 import com.xuecheng.framework.domain.course.request.CourseListRequest;
 import com.xuecheng.framework.domain.course.response.AddCourseResult;
 import com.xuecheng.framework.domain.course.response.CourseCode;
+import com.xuecheng.framework.domain.media.TeachplanMediaPub;
+import com.xuecheng.framework.domain.media.response.MediaCode;
 import com.xuecheng.framework.exception.ExceptionCast;
 import com.xuecheng.framework.model.response.CommonCode;
 import com.xuecheng.framework.model.response.QueryResponseResult;
@@ -30,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -63,6 +66,12 @@ public class CourseService {
     CmsPageClient cmsPageClient;
     @Autowired
     CoursePubRepository coursePubRepository;
+
+    @Autowired
+    TeachplanMediaRepository teachplanMediaRepository;
+
+    @Autowired
+    TeachplanMediaPubRepository teachplanMediaPubRepository;
 
     //查询课程计划
     public TeachplanNode findTeachplanList(String courseId){
@@ -357,10 +366,26 @@ public class CourseService {
         CoursePub coursePub = createCoursePub(id);
         //保存 coursePub,有则更改,无则添加
         CoursePub coursePub1 = saveCoursePub(id, coursePub);
+        //保存课程计划媒资信息到待索引表
+        saveTeachplanMediaPub(id);
+
         //课程缓存...
         //页面url
         String pageUrl = cmsPostPageResult.getPageUrl();
         return new CoursePublishResult(CommonCode.SUCCESS, pageUrl);
+    }
+
+    private void saveTeachplanMediaPub(String id) {
+                                                    //TDODO
+        long l = teachplanMediaPubRepository.deleteByCourseId(id);//先删除后添加
+        List<TeachplanMedia> byCourseId = teachplanMediaRepository.findByCourseId(id);
+        List<TeachplanMediaPub> teachplanMediaPubList = new ArrayList<>();
+        for (TeachplanMedia teachplanMedia : byCourseId) {
+            TeachplanMediaPub teachplanMediaPub =new TeachplanMediaPub();
+            BeanUtils.copyProperties(teachplanMedia,teachplanMediaPub);
+            teachplanMediaPubList.add(teachplanMediaPub);
+        }
+        teachplanMediaPubRepository.saveAll(teachplanMediaPubList);
     }
 
     //保存 coursePub,有则更改,无则添加
@@ -417,4 +442,33 @@ public class CourseService {
         return base;
     }
 
+    //保存媒资信息
+    public ResponseResult savemedia(TeachplanMedia teachplanMedia) {
+        if (teachplanMedia==null){
+            ExceptionCast.Cast(CommonCode.INVALIDPARAM);
+        }
+        Optional<Teachplan> id = teachplanRepository.findById(teachplanMedia.getTeachplanId());
+        if (!id.isPresent()){
+            ExceptionCast.Cast(CourseCode.COURSE_PUBLISH_COURSEIDISNULL);
+        }
+        Teachplan teachplan = id.get();
+        String grade = teachplan.getGrade();//判断课程计划节点是否为三级节点
+        if(StringUtils.isEmpty(grade) || !grade.equals("3")){
+            ExceptionCast.Cast(CourseCode.COURSE_MEDIA_TEACHPLAN_GRADEERROR);
+        }
+        Optional<TeachplanMedia> byId = teachplanMediaRepository.findById(teachplan.getId());
+        TeachplanMedia one =null;
+        if (!byId.isPresent()){
+            one=new TeachplanMedia();
+        }
+        one=byId.get();
+        //保存媒资信息与课程计划信息
+        one.setTeachplanId(teachplanMedia.getTeachplanId());
+        one.setCourseId(teachplanMedia.getCourseId());
+        one.setMediaFileOriginalName(teachplanMedia.getMediaFileOriginalName());
+        one.setMediaId(teachplanMedia.getMediaId());
+        one.setMediaUrl(teachplanMedia.getMediaUrl());
+        teachplanMediaRepository.save(one);
+        return new ResponseResult(CommonCode.SUCCESS);
+    }
 }
